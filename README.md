@@ -1,6 +1,5 @@
 # PCL - Point Cloud Library
-Enclosed you will find my point cloud library with the following functions, which you can easily adapt.
-There is also a glut GUI and I did something with GL Extensions. But in a nutshell:
+point cloud library with the following functions
 
 - Boost Graph Library for Environments (e.g. Rank k)
 - HDF5 (plain, could be streamlined with HighFive)
@@ -9,10 +8,10 @@ There is also a glut GUI and I did something with GL Extensions. But in a nutshe
 - Eigen (dense matrix and eigenvalues) libeigen3-dev
 
 
-Then I create `flat_point` data structures and bind them as geometry to a coordinate system - so I can run boost geometry on memory areas.
+Then we create `flat_point` data structures and bind them as geometry to a coordinate system - so we can run boost geometry on memory areas.
 
 
-Value_maker is created on bulk loading to make a point a box - then I can bulk load r-tree without copy.
+`value_maker` is created on bulk loading to make a point a box - then we can bulk load r-tree without copy.
 
 Zonal-Key is then intended for 2D extracts (e.g. Twitter) is only of limited use here, but can be generalized to 3D.
 

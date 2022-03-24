@@ -304,11 +304,9 @@ struct tensor_features {
 
 class pointcloud {
 public:
-  std::vector<point> cloud;
+  std::vector<point> coords;
   std::vector<uint32_t> classes;
-  std::vector<float> certainty;
   std::vector<std::vector<double>> features;
-  std::vector<std::tuple<uint8_t, uint8_t, uint8_t>> color;
 
   graph_t g;
 
@@ -317,7 +315,7 @@ public:
   point center;
   pointcloud() {}
 
-  size_t size() { return cloud.size(); };
+  size_t size() { return coords.size(); };
 
   bool loadh5(std::string filename, bool index = true) {
 #ifdef HAVE_HDF5
@@ -337,8 +335,8 @@ public:
     printf("dataset rank %d, dimensions %lu x %lu\n", rank, (uint64_t)(dims[0]),
            (uint64_t)(dims[1]));
 
-    cloud.clear();
-    cloud.reserve(dims[0]);
+    coords.clear();
+    coords.reserve(dims[0]);
 
     // we only support chunked datasets
     auto cparms =
@@ -387,9 +385,8 @@ public:
         if (dims[1] == 3)
           z = *p++;
 
-        cloud.push_back(point(x, y, z));
+        coords.push_back(point(x, y, z));
         classes.push_back(0);
-        certainty.push_back(1.0);
       }
     } // for
 
@@ -399,9 +396,9 @@ public:
     status = H5Dclose(coords_ds);
     status = H5Fclose(file_id);
 
-    std::cout << "Have " << cloud.size() << " points" << std::endl;
+    std::cout << "Have " << coords.size() << " points" << std::endl;
     // Compute center
-    multipoint &mp = (multipoint &)cloud;
+    multipoint &mp = (multipoint &)coords;
     bg::centroid(mp, center);
     std::cout << "Center: " << bg::get<0>(center) << ", " << bg::get<1>(center)
               << ", " << bg::get<2>(center) << std::endl;
@@ -418,7 +415,7 @@ public:
     hid_t file_id, dset_id, space_id, dcpl_id;
     hsize_t chunk_dims[2] = {1024, dim};
 
-    hsize_t dset_dims[2] = {cloud.size(), dim};
+    hsize_t dset_dims[2] = {coords.size(), dim};
     //	int     buffer[12][12];
     /* Create the file */
     file_id =
@@ -435,7 +432,7 @@ public:
       throw(std::runtime_error("unable to write 2d point clouds now"));
     /* Write to the dataset */
     H5Dwrite(dset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-             &cloud[0]);
+             &coords[0]);
 
     /* Close */
     H5Dclose(dset_id);
@@ -475,13 +472,12 @@ public:
       double z = std::stod(tokens[2]);
       size_t cl = std::stoi(tokens[3]);
       double certain = std::stod(tokens[4]);
-      cloud.push_back(point(x, y, z));
+      coords.push_back(point(x, y, z));
       classes.push_back(cl);
-      certainty.push_back(certain);
     }
-    std::cout << "Have " << cloud.size() << " points" << std::endl;
+    std::cout << "Have " << coords.size() << " points" << std::endl;
     // Compute center
-    multipoint &mp = (multipoint &)cloud;
+    multipoint &mp = (multipoint &)coords;
     bg::centroid(mp, center);
     std::cout << "Center: " << bg::get<0>(center) << ", " << bg::get<1>(center)
               << ", " << bg::get<2>(center) << std::endl;
@@ -490,17 +486,18 @@ public:
   }
 
   void buildIndex() {
-    rt = rtree3(cloud | boost::adaptors::indexed() |
+    rt = rtree3(coords | boost::adaptors::indexed() |
                 boost::adaptors::transformed(value_maker3()));
 
-    //	rt = rtree(cloud.begin(), cloud.end());
+    //	rt = rtree(coords.begin(), coords.end());
   }
 
-  size_t buildGraph(size_t k = 7) { // will get parameters
-    g = graph_t(cloud.size());      // create a fresh empty graph
+  size_t buildGraph(size_t k = 7) {
+    // will get parameters
+    g = graph_t(coords.size()); // create a fresh empty graph
 #pragma omp parallel for
-    for (size_t i = 0; i < cloud.size(); i++) {
-      const auto &p = cloud[i];
+    for (size_t i = 0; i < coords.size(); i++) {
+      const auto &p = coords[i];
       rt.query(bgi::nearest(p, k),
                boost::make_function_output_iterator([&](value3 const &v) {
                  //	        #neighbors.push_back(v.first.min_corner());
@@ -536,33 +533,35 @@ public:
 
   void applyKNNZ(size_t k = 6) {
 #pragma omp parallel for
-    for (size_t i = 0; i < cloud.size(); i++) {
-      const auto &p = cloud[i];
+    for (size_t i = 0; i < coords.size(); i++) {
+      const auto &p = coords[i];
       double d = 0;
       rt.query(bgi::nearest(p, k),
                boost::make_function_output_iterator([&](value3 const &v) {
                  //	        #neighbors.push_back(v.first.min_corner());
                  if (i == v.second)
                    return;
-                 double _d = bg::distance(cloud[i], cloud[v.second]);
+                 double _d = bg::distance(coords[i], coords[v.second]);
 #pragma omp critical
                  if (_d > d)
                    d = _d;
                }));
-      bg::set<2>(cloud[i], -d);
+      bg::set<2>(coords[i], -d);
     }
   }
 
+  // TODO extract knn and calculate tensors seperately
+  // knn.shape = (n,3,k) or (n, k, 3)?
+  // TODO encode knn into 3d globimap
   void extractKNN(size_t k = 6) {
     features.clear();
-    // our first basic extractor: for each point, extract kNN, extract features
-    // from it and write to CSV
+    // our first basic extractor: for each point, extract kNN
     tensor_features tf;
-
-    for (size_t i = 0; i < cloud.size(); i++) {
+    // TODO tqdm here
+    for (size_t i = 0; i < coords.size(); i++) {
       if (i % 1000 == 0)
-        std::cout << i << "/" << cloud.size() << std::endl;
-      const point &p = cloud[i];
+        std::cout << i << "/" << coords.size() << std::endl;
+      const point &p = coords[i];
       //	  std::cout << "Extract " << p << std::endl;
       multipoint neighbors;
       neighbors.push_back(p);
@@ -579,7 +578,7 @@ public:
       //	  std::cout << "Center: " << neighbors_centroid << std::endl;
 
       MatrixXd mp(k, 3);
-      for (size_t i = 0; i < k; i++) // assert cloud.size() > k
+      for (size_t i = 0; i < k; i++) // assert coords.size() > k
       {
         mp(i, 0) = bg::get<0>(neighbors[i]) - bg::get<0>(neighbors_centroid);
         mp(i, 1) = bg::get<1>(neighbors[i]) - bg::get<1>(neighbors_centroid);
