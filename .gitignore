@@ -1,0 +1,14 @@
+build/**
+globimap/__pycache__
+tests/__pycache__
+buffer.bin
+globimap/**.bin
+globimap/**.so
+globimap/**.egg-info
+**.egg-info
+**.so
+.vscode
+.idea
+cmake-build-debug
+build
+globimap/loc.hpp
