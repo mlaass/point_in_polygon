@@ -545,14 +545,10 @@ public:
     }
   }
 
-  // TODO extract knn and calculate tensors seperately
-  // knn.shape = (n,3,k) or (n, k, 3)?
-  // TODO encode knn into 3d globimap
   void knn(size_t k, std::function<void(const multipoint &)> fn) {
 
     // our first basic extractor: for each point, extract kNN
 
-    // TODO tqdm here
     for (size_t i = 0; i < coords.size(); i++) {
       // if (i % 1000 == 0)
       //   std::cout << i << "/" << coords.size() << std::endl;
@@ -595,17 +591,12 @@ public:
     ev = ev / ev.sum();
     return tensor_features::calc(ev);
   }
-  void extractKnnTensors(size_t k, std::vector<std::vector<double>> &features) {
-    this->knn(k, [&](const multipoint &neighbors) {
-      features.push_back(pointcloud::neighborsToTF(k, neighbors));
-    });
-  }
-  void extractKnnTensorsAndNeighbors(size_t k,
-                                     std::vector<std::vector<double>> &features,
+
+  void extractKnnTensorsAndNeighbors(size_t k, std::vector<double> &features,
                                      std::vector<double> &neighbors_out) {
     this->knn(k, [&](const multipoint &neighbors) {
-      features.push_back(pointcloud::neighborsToTF(k, neighbors));
-
+      auto tf = pointcloud::neighborsToTF(k, neighbors);
+      features.insert(features.end(), tf.begin(), tf.end());
       bg::for_each_point(neighbors, [&](point const &p) {
         neighbors_out.push_back(bg::get<0>(p));
         neighbors_out.push_back(bg::get<1>(p));

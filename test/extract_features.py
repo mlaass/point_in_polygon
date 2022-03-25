@@ -24,15 +24,17 @@ for file in files[:1]:
     print("******* extract: ", file, "->", outfile)
 
     with h5py.File(file, "r") as f:
-        for grp in tqdm(list(f.keys())):
+        groups = list(f.keys())
+        # groups = ["object_dataset_bed_scene0006_00_00002"]
+        for grp in tqdm(groups):
             pc = mpcl.pointcloud(f[grp]["coords"])
             g = f.require_group(grp)
-            print(grp, list(g.keys()), f[grp]["coords"].shape)
             # for k in (range(6, 13)):
             k = 6
             features, neighbors = pc.extractKnnTensorsAndNeighbors(k)
-            print(k, neighbors.shape, neighbors.dtype)
-            print(neighbors[0])
+            # print(grp, list(g.keys()), f[grp]["coords"].shape, features.shape)
+            #print(k, neighbors.shape, neighbors.dtype)
+            # print(neighbors[0])
             nfeat = f"features_k{k}"
             nneigh = f"neighbors_k{k}"
             # if nfeat in g:
@@ -40,8 +42,7 @@ for file in files[:1]:
             # if nneigh in g:
             #     del g[nneigh]
 
-            # with h5py.File(outfile, "a") as fout:
-            #           neighbors.shape, neighbors.dtype)
-            #     gout = fout.require_group(grp)
-            #     #gout.create_dataset(nfeat, data=features)
-            #     gout.create_dataset(nneigh, data=neighbors)
+            with h5py.File(outfile, "a") as fout:
+                gout = fout.require_group(grp)
+                gout.create_dataset(nfeat, data=features)
+                gout.create_dataset(nneigh, data=neighbors)

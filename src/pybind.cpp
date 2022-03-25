@@ -94,25 +94,28 @@ PYBIND11_MODULE(mpcl, m) {
         return self;
       }))
       .def(
-          "extractKnnTensors",
-          +[](mpcl::pointcloud &self, size_t k) {
-            std::vector<std::vector<double>> features;
-            self.extractKnnTensors(k, features);
-            return wrap2D<double>((double *)&features[0], features.size(),
-                                  features[0].size());
-          })
-      .def(
           "extractKnnTensorsAndNeighbors",
           +[](mpcl::pointcloud &self, size_t k) {
-            std::vector<std::vector<double>> features;
-            std::vector<double> neighbors;
-            self.extractKnnTensorsAndNeighbors(k, features, neighbors);
-            size_t row_size = (k + 1) * 3;
-            return std::make_tuple(
-                wrap2D<double>((double *)&features[0], features.size(),
-                               features[0].size()),
-                wrap2D<double>((double *)&neighbors[0],
-                               neighbors.size() / row_size, row_size));
+            try {
+
+              std::vector<double> features;
+              std::vector<double> neighbors;
+              self.extractKnnTensorsAndNeighbors(k, features, neighbors);
+              size_t row_size = (k + 1) * 3;
+              auto feat = wrap2D<double>((double *)&features[0],
+                                         features.size() / 8, 8);
+              auto neigh =
+                  wrap2D<double>((double *)&neighbors[0],
+                                 neighbors.size() / row_size, row_size);
+              return std::make_tuple(feat, neigh);
+              //   return std::make_tuple(
+              //       wrap2D<double>((double *)&features[0], features.size(),
+              //                      features[0].size()),
+              //       wrap2D<double>((double *)&neighbors[0],
+              //                      neighbors.size() / row_size, row_size));
+            } catch (std::exception &e) {
+              std::cout << "Exception caught : " << e.what() << std::endl;
+            }
           })
 
       ;
