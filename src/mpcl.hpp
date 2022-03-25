@@ -600,18 +600,17 @@ public:
       features.push_back(pointcloud::neighborsToTF(k, neighbors));
     });
   }
-  void extractKnnTensorsAndNeighbors(
-      size_t k, std::vector<std::vector<double>> &features,
-      std::vector<std::vector<double>> &neighbors_out) {
+  void extractKnnTensorsAndNeighbors(size_t k,
+                                     std::vector<std::vector<double>> &features,
+                                     std::vector<double> &neighbors_out) {
     this->knn(k, [&](const multipoint &neighbors) {
       features.push_back(pointcloud::neighborsToTF(k, neighbors));
-      std::vector<double> ng;
+
       bg::for_each_point(neighbors, [&](point const &p) {
-        ng.push_back(bg::get<0>(p));
-        ng.push_back(bg::get<1>(p));
-        ng.push_back(bg::get<2>(p));
+        neighbors_out.push_back(bg::get<0>(p));
+        neighbors_out.push_back(bg::get<1>(p));
+        neighbors_out.push_back(bg::get<2>(p));
       });
-      neighbors_out.push_back(ng);
     });
   }
 };

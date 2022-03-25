@@ -28,16 +28,21 @@ int main() {
       pc.coords.push_back(point(p[0], p[1], p[2]));
     }
     pc.buildIndex();
-    for (auto k : tq::range(3, 8)) {
-      std::cout << "extract knn for k = " << k << std::endl;
-      std::vector<std::vector<double>> features;
-      std::vector<std::vector<double>> neighbors;
-      pc.extractKnnTensorsAndNeighbors(k, features, neighbors);
-      std::cout << "features = (" << features.size() << ","
-                << features[0].size() << ")"
-                << " neighbors: (" << neighbors.size() << ","
-                << neighbors[0].size() << ")" << std::endl;
+    size_t k = 6;
+    std::cout << "extract knn for k = " << k << std::endl;
+    std::vector<std::vector<double>> features;
+    std::vector<double> neighbors;
+    pc.extractKnnTensorsAndNeighbors(k, features, neighbors);
+    size_t row_size = (k + 1) * 3;
+    std::cout << k << " (" << features.size() << "," << features[0].size()
+              << ") (" << neighbors.size() / row_size << "," << row_size << ")"
+              << std::endl;
+    std::cout << "[ ";
+    for (auto i = 0; i < row_size; i++) {
+
+      std::cout << neighbors[i] << " ";
     }
+    std::cout << " ] " << std::endl;
   }
 
   std::cout << "ok" << std::endl;

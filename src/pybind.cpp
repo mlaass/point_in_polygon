@@ -22,7 +22,20 @@ static py::array_t<T> wrap2D(T *data, size_t h, size_t w) {
       data, [](void *v) { /*delete reinterpret_cast<double *>(v);*/ });
 
   return py::array_t<T, py::array::forcecast | py::array::c_style>(
-      shape, strides, data, caps);
+      shape, strides, data);
+}
+
+template <class T>
+py::array_t<T> create_matrix(size_t width, size_t height,
+                             T *data_ptr = nullptr) {
+  return py::array_t<T>(py::buffer_info(
+      data_ptr,
+      sizeof(T), // itemsize
+      py::format_descriptor<T>::format(),
+      2,                                                 // ndim
+      std::vector<size_t>{width, height},                // shape
+      std::vector<size_t>{height * sizeof(T), sizeof(T)} // strides
+      ));
 }
 
 // This template is a handy tool to call a function f(i,j,value) for each entry
@@ -92,14 +105,14 @@ PYBIND11_MODULE(mpcl, m) {
           "extractKnnTensorsAndNeighbors",
           +[](mpcl::pointcloud &self, size_t k) {
             std::vector<std::vector<double>> features;
-            std::vector<std::vector<double>> neighbors;
+            std::vector<double> neighbors;
             self.extractKnnTensorsAndNeighbors(k, features, neighbors);
+            size_t row_size = (k + 1) * 3;
             return std::make_tuple(
-                std::move(wrap2D<double>((double *)&features[0],
-                                         features.size(), features[0].size())),
-                std::move(wrap2D<_Float32>((_Float32 *)&neighbors[0],
-                                           neighbors.size(),
-                                           neighbors[0].size())));
+                wrap2D<double>((double *)&features[0], features.size(),
+                               features[0].size()),
+                wrap2D<double>((double *)&neighbors[0],
+                               neighbors.size() / row_size, row_size));
           })
 
       ;

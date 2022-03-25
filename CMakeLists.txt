@@ -47,6 +47,8 @@ include_directories(
    lib/boost-headers-only
    lib/nlohmann_json
    lib/eigen-3.4.0
+   lib/xtensor/include
+   lib/xtensor-python/include
    src
    )
 
