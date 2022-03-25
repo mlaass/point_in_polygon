@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.4...3.18)
 set(CMAKE_CXX_STANDARD 20)
 project(mpcl)
 
+execute_process(COMMAND git submodule update --init --recursive)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
