@@ -14,7 +14,7 @@ namespace py = pybind11;
 
 // Wrap 2D C++ array (given as pointer) to a numpy object.
 template <typename T>
-static py::array_t<T> wrap2D(T *data, size_t w, size_t h) {
+static py::array_t<T> wrap2D(T *data, size_t h, size_t w) {
 
   auto shape = {h, w};
   auto strides = std::vector<size_t>({sizeof(T) * w, sizeof(T)});
