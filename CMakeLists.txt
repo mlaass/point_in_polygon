@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 3.12)
+
+
+cmake_minimum_required(VERSION 3.4...3.18)
 set(CMAKE_CXX_STANDARD 20)
-project(pcl)
+project(mpcl)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -21,7 +23,9 @@ set(PYBIND_SOURCES
 
 # Generate Python module
 add_subdirectory(lib/pybind11)
-pybind11_add_module(pcl ${PYBIND_SOURCES})
+pybind11_add_module(mpcl ${PYBIND_SOURCES})
+target_compile_definitions(mpcl
+                           PRIVATE VERSION_INFO=${MPCL_VERSION_INFO})
 
 set(HIGHFIVE_USE_BOOST OFF)
 set(HIGHFIVE_EXAMPLES OFF)

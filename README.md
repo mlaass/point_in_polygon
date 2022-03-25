@@ -1,4 +1,4 @@
-# PCL - Point Cloud Library
+# MPCL - Martins's Point Cloud Library
 point cloud library with the following functions
 
 - Boost Graph Library for Environments (e.g. Rank k)
