@@ -97,9 +97,9 @@ PYBIND11_MODULE(mpcl, m) {
             return std::make_tuple(
                 std::move(wrap2D<double>((double *)&features[0],
                                          features.size(), features[0].size())),
-                std::move(wrap2D<double>((double *)&neighbors[0],
-                                         neighbors.size(),
-                                         neighbors[0].size())));
+                std::move(wrap2D<_Float32>((_Float32 *)&neighbors[0],
+                                           neighbors.size(),
+                                           neighbors[0].size())));
           })
 
       ;
