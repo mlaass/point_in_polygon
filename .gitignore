@@ -12,3 +12,4 @@ globimap/**.egg-info
 cmake-build-debug
 build
 globimap/loc.hpp
+test/modelnet10_sample_features.h5
