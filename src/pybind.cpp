@@ -97,13 +97,14 @@ PYBIND11_MODULE(mpcl, m) {
           "extractKnnTensorsAndNeighbors",
           +[](mpcl::pointcloud &self, size_t k) {
             try {
-
               std::vector<double> features;
               std::vector<double> neighbors;
               self.extractKnnTensorsAndNeighbors(k, features, neighbors);
               size_t row_size = (k + 1) * 3;
-              auto feat = wrap2D<double>((double *)&features[0],
-                                         features.size() / 8, 8);
+              auto feat =
+                  wrap2D<double>((double *)&features[0],
+                                 features.size() / mpcl::tensor_features::size,
+                                 mpcl::tensor_features::size);
               auto neigh =
                   wrap2D<double>((double *)&neighbors[0],
                                  neighbors.size() / row_size, row_size);
@@ -113,26 +114,6 @@ PYBIND11_MODULE(mpcl, m) {
               //                      features[0].size()),
               //       wrap2D<double>((double *)&neighbors[0],
               //                      neighbors.size() / row_size, row_size));
-            } catch (std::exception &e) {
-              std::cout << "Exception caught : " << e.what() << std::endl;
-            }
-          })
-      .def(
-          "extractKnnTensorsAndNeighborsPara",
-          +[](mpcl::pointcloud &self, size_t k) {
-            try {
-
-              std::vector<double> features;
-              std::vector<double> neighbors;
-              self.extractKnnTensorsAndNeighborsPara(k, features, neighbors);
-              size_t row_size = (k + 1) * 3;
-              auto feat = wrap2D<double>((double *)&features[0],
-                                         features.size() / 8, 8);
-              auto neigh =
-                  wrap2D<double>((double *)&neighbors[0],
-                                 neighbors.size() / row_size, row_size);
-              return std::make_tuple(std::move(feat), std::move(neigh));
-
             } catch (std::exception &e) {
               std::cout << "Exception caught : " << e.what() << std::endl;
             }
