@@ -31,7 +31,7 @@ for file in files[:1]:
             g = f.require_group(grp)
             # for k in (range(6, 13)):
             k = 6
-            features, neighbors = pc.extractKnnTensorsAndNeighbors(k)
+            features, neighbors = pc.extractKnnTensorsAndNeighborsPara(k)
             # print(grp, list(g.keys()), f[grp]["coords"].shape, features.shape)
             #print(k, neighbors.shape, neighbors.dtype)
             # print(neighbors[0])

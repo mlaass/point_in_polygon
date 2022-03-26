@@ -278,6 +278,7 @@ public:
 
 struct tensor_features {
   static const std::vector<std::string> names;
+  static const size_t size = 8;
   template <typename vec3> static std::vector<double> calc(const vec3 &l) {
     return {
         (l[0] - l[1]) / l[0],     // linearity
@@ -292,6 +293,7 @@ struct tensor_features {
     };
   };
 };
+// const size_t tensor_features::size = 8;
 const std::vector<std::string> tensor_features::names = {
     "linearity",  "planarity",    "scattering",  "omnivariance",
     "anisotropy", "eigenentropy", "trace_by_l0", "chg_of_curv"};
@@ -545,6 +547,28 @@ public:
     }
   }
 
+  void knnPara(size_t k, std::function<void(size_t, const multipoint &)> fn) {
+
+    // our first basic extractor: for each point, extract kNN
+
+#pragma omp parallel for
+    for (size_t i = 0; i < coords.size(); i++) {
+      // if (i % 1000 == 0)
+      //   std::cout << i << "/" << coords.size() << std::endl;
+      const point &p = coords[i];
+      //	  std::cout << "Extract " << p << std::endl;
+      multipoint neighbors;
+      neighbors.push_back(p);
+      rt.query(
+          bgi::nearest(p, k),
+          boost::make_function_output_iterator([&neighbors](value3 const &v) {
+            neighbors.push_back(v.first.min_corner());
+          }));
+#pragma omp critical
+      fn(i, neighbors);
+    }
+  }
+
   void knn(size_t k, std::function<void(const multipoint &)> fn) {
 
     // our first basic extractor: for each point, extract kNN
@@ -592,6 +616,29 @@ public:
     return tensor_features::calc(ev);
   }
 
+  void extractKnnTensorsAndNeighborsPara(size_t k,
+                                         std::vector<double> &features,
+                                         std::vector<double> &neighbors_out) {
+    features.resize(tensor_features::size * coords.size());
+    neighbors_out.resize((k + 1) * 3 * coords.size());
+
+    this->knnPara(k, [&](size_t id, const multipoint &neighbors) {
+      auto tf = pointcloud::neighborsToTF(k, neighbors);
+      features.insert(features.begin() + (id * tensor_features::size),
+                      tf.begin(), tf.end());
+      size_t i = 0;
+      bg::for_each_point(neighbors, [&](point const &p) {
+        // neighbors_out.push_back(bg::get<0>(p));
+        // neighbors_out.push_back(bg::get<1>(p));
+        // neighbors_out.push_back(bg::get<2>(p));
+        size_t s = id * (k + 1) * 3 + (i * 3);
+        neighbors_out[s] = (bg::get<0>(p));
+        neighbors_out[s + 1] = (bg::get<1>(p));
+        neighbors_out[s + 2] = (bg::get<2>(p));
+        i++;
+      });
+    });
+  }
   void extractKnnTensorsAndNeighbors(size_t k, std::vector<double> &features,
                                      std::vector<double> &neighbors_out) {
     this->knn(k, [&](const multipoint &neighbors) {
