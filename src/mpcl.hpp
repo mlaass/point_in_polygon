@@ -546,6 +546,49 @@ public:
     }
   }
 
+  void voxelGrid(size_t n, size_t min_size,
+                 std::function<void(const std::vector<size_t> &, box3 &,
+                                    const multipoint &)>
+                     fn) {
+    // our first basic extractor: for each point, extract kNN
+    auto bounds = rt.bounds();
+
+    auto mn = bounds.min_corner();
+    auto mx = bounds.max_corner();
+    auto iv0 = (mx.get<0>() - mn.get<0>()) / (float)n;
+    auto iv1 = (mx.get<1>() - mn.get<1>()) / (float)n;
+    auto iv2 = (mx.get<2>() - mn.get<2>()) / (float)n;
+
+    for (size_t i0 = 0; i0 < n; i0++) {
+      for (size_t i1 = 0; i1 < n; i1++) {
+        for (size_t i2 = 0; i2 < n; i2++) {
+          multipoint neighbors;
+          box3 box;
+          flat_point3 vmin = {
+              (mn.get<0>() + iv0 * i0),
+              (mn.get<1>() + iv1 * i1),
+              (mn.get<2>() + iv2 * i2),
+          };
+          flat_point3 vmax = {
+              (mn.get<0>() + iv0 * (i0 + 1)),
+              (mn.get<1>() + iv1 * (i1 + 1)),
+              (mn.get<2>() + iv2 * (i2 + 1)),
+          };
+          box.min_corner() = vmin;
+          box.max_corner() = vmax;
+          rt.query(bgi::covered_by(box),
+                   boost::make_function_output_iterator(
+                       [&neighbors](value3 const &v) {
+                         neighbors.push_back(v.first.min_corner());
+                       }));
+          if (neighbors.size() > min_size) {
+            fn({i0, i1, i2}, box, neighbors);
+          }
+        }
+      }
+    }
+  }
+
   void knn(size_t k, std::function<void(const multipoint &)> fn) {
 
     // our first basic extractor: for each point, extract kNN
@@ -565,15 +608,10 @@ public:
       fn(neighbors);
     }
   }
-  static std::vector<double> neighborsToTF(size_t k,
-                                           const multipoint &neighbors) {
+  static std::vector<double> neighborsToTF(const multipoint &neighbors) {
+    auto k = neighbors.size();
     point neighbors_centroid;
     bg::centroid(neighbors, neighbors_centroid);
-
-    // for (auto &p: neighbors)
-    //   std::cout << "Neighbor: " << p<<std::endl;
-    // std::cout << "Center: " << neighbors_centroid << std::endl;
-
     MatrixXd mp(k, 3);
     for (size_t i = 0; i < k; i++) // assert coords.size() > k
     {
@@ -581,15 +619,11 @@ public:
       mp(i, 1) = bg::get<1>(neighbors[i]) - bg::get<1>(neighbors_centroid);
       mp(i, 2) = bg::get<2>(neighbors[i]) - bg::get<2>(neighbors_centroid);
     }
-    // std::cout << mp << std::endl;
     mp = mp.transpose() * mp;
-    // std::cout << "--" << std::endl;
-    // std::cout << mp << std::endl;
-    // std::cout << "--" << std::endl;
-
     Eigen::SelfAdjointEigenSolver<MatrixXd> solver(mp, false);
     auto ev = solver.eigenvalues().reverse();
     ev = ev / ev.sum();
+
     return tensor_features::calc(ev);
   }
 
@@ -598,7 +632,7 @@ public:
     features.reserve(tensor_features::size * coords.size());
     neighbors_out.reserve((k + 1) * 3 * coords.size());
     this->knn(k, [&](const multipoint &neighbors) {
-      auto tf = pointcloud::neighborsToTF(k, neighbors);
+      auto tf = pointcloud::neighborsToTF(neighbors);
       features.insert(features.end(), tf.begin(), tf.end());
       bg::for_each_point(neighbors, [&](point const &p) {
         neighbors_out.push_back(bg::get<0>(p));
@@ -606,6 +640,27 @@ public:
         neighbors_out.push_back(bg::get<2>(p));
       });
     });
+  }
+
+  void extractVoxelGridTensorsAndNeighbors(size_t n, size_t min_size,
+                                           std::vector<double> &features,
+                                           std::vector<double> &neighbors_out,
+                                           std::vector<size_t> &neighbors_idx) {
+    features.reserve(tensor_features::size * coords.size());
+    size_t start = 0;
+    this->voxelGrid(n, min_size,
+                    [&](auto idx, auto box, const multipoint &neighbors) {
+                      auto tf = pointcloud::neighborsToTF(neighbors);
+                      features.insert(features.end(), tf.begin(), tf.end());
+                      bg::for_each_point(neighbors, [&](point const &p) {
+                        neighbors_out.push_back(bg::get<0>(p));
+                        neighbors_out.push_back(bg::get<1>(p));
+                        neighbors_out.push_back(bg::get<2>(p));
+                      });
+                      neighbors_idx.push_back(start);
+                      neighbors_idx.push_back(neighbors.size());
+                      start += neighbors.size();
+                    });
   }
 };
 

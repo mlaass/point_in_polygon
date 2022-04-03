@@ -109,12 +109,32 @@ PYBIND11_MODULE(mpcl, m) {
                   wrap2D<double>((double *)&neighbors[0],
                                  neighbors.size() / row_size, row_size);
               return std::make_tuple(std::move(feat), std::move(neigh));
-              //   return std::make_tuple(
-              //       wrap2D<double>((double *)&features[0], features.size(),
-              //                      features[0].size()),
-              //       wrap2D<double>((double *)&neighbors[0],
-              //                      neighbors.size() / row_size, row_size));
             } catch (std::exception &e) {
+
+              std::cout << "Exception caught : " << e.what() << std::endl;
+            }
+          })
+      .def(
+          "extractVoxelGridTensorsAndNeighbors",
+          +[](mpcl::pointcloud &self, size_t n, size_t min_size) {
+            try {
+              std::vector<double> features;
+              std::vector<double> neighbors;
+              std::vector<size_t> neighbors_idx;
+              self.extractVoxelGridTensorsAndNeighbors(
+                  n, min_size, features, neighbors, neighbors_idx);
+              auto feat =
+                  wrap2D<double>((double *)&features[0],
+                                 features.size() / mpcl::tensor_features::size,
+                                 mpcl::tensor_features::size);
+              auto neigh = wrap2D<double>((double *)&neighbors[0],
+                                          neighbors.size() / 3, 3);
+              auto neigh_idx = wrap2D<size_t>((size_t *)&neighbors_idx[0],
+                                              neighbors_idx.size() / 2, 2);
+              return std::make_tuple(std::move(feat), std::move(neigh),
+                                     std::move(neigh_idx));
+            } catch (std::exception &e) {
+
               std::cout << "Exception caught : " << e.what() << std::endl;
             }
           })
