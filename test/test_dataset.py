@@ -1,18 +1,23 @@
-import mpcl
+#!/bin/python3
+import point_in_polygon as pip
 import h5py
 import os
 dirname = os.path.dirname(__file__)
 
 
 class cfg:
-    filename = os.path.join(dirname, "modelnet10_sample.h5")
+    polyfile = os.path.join(dirname, "eea_europe_wei_plus.h5")
+    pointfile = os.path.join(dirname, "twitter_1mio_coords.h5")
 
 
-with h5py.File(cfg.filename, "r") as f:
-    sizes = {}
-    for grp in list(f.keys()):
-        pc = mpcl.pointcloud(f[grp]["coords"])
-        print(grp)
-        for k in range(3, 8):
-            features, neighbors = pc.extractKnnTensorsAndNeighbors(k)
-            print(k, features.shape, neighbors.shape)
+if __name__ == "__main__":
+    print("start")
+    polys = h5py.File(cfg.polyfile, "r")
+    points = h5py.File(cfg.pointfile, "r")
+
+    print("build zk")
+    zk = pip.ZonalKey(polys["polygons"][:], polys["coords"][:])
+    print(zk.stats())
+    print("test zk")
+    results = zk.test(points["coords"][:])
+    print(zk.stats())

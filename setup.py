@@ -71,14 +71,14 @@ class CMakeBuild(build_ext):
 
 
 setup(
-    name='mpcl',
-    version='0.1.1',
+    name='point_in_polygon',
+    version='0.0.1',
     author='Martin Werner, Moritz Laass',
     author_email='moritz.laass@tum.de',
-    description='Martin\'s Pointcloud Library',
+    description='point_in_polygon',
     long_description='',
     # add extension module
-    ext_modules=[CMakeExtension('mpcl')],
+    ext_modules=[CMakeExtension('point_in_polygon')],
     # add custom build_ext command
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,

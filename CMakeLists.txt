@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.4...3.18)
 set(CMAKE_CXX_STANDARD 20)
-project(mpcl)
+project(point_in_polygon)
 
 execute_process(COMMAND git submodule update --init --recursive)
 
@@ -25,9 +25,9 @@ set(PYBIND_SOURCES
 
 # Generate Python module
 add_subdirectory(lib/pybind11)
-pybind11_add_module(mpcl ${PYBIND_SOURCES})
-target_compile_definitions(mpcl
-                           PRIVATE VERSION_INFO=${MPCL_VERSION_INFO})
+pybind11_add_module(point_in_polygon ${PYBIND_SOURCES})
+target_compile_definitions(point_in_polygon
+                           PRIVATE VERSION_INFO=${POINT_IN_POLYGON_VERSION_INFO})
 
 set(HIGHFIVE_USE_BOOST OFF)
 set(HIGHFIVE_EXAMPLES OFF)
@@ -36,9 +36,6 @@ set(HIGHFIVE_PARALLEL_HDF5 OFF)
 
 add_subdirectory(lib/HighFive/)
 
-set(SOURCES_TEST_DATASET
-    test/test_dataset.cpp
-)
 
 include_directories(
    lib/HighFive/include/highfive
@@ -52,15 +49,13 @@ include_directories(
    src
    )
 
-add_executable(test_dataset ${SOURCES_TEST_DATASET})
-
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
 
-target_link_libraries(test_dataset
-PUBLIC HighFive
-PUBLIC OpenMP::OpenMP_CXX)
+# target_link_libraries(test_dataset
+# PUBLIC HighFive
+# PUBLIC OpenMP::OpenMP_CXX)
 
 
 endif()
