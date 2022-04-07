@@ -22,19 +22,19 @@ if __name__ == "__main__":
     polys = h5py.File(cfg.polyfile, "r")
     points = h5py.File(cfg.pointfile, "r")
 
-    print("build zk")
-    zk = pip.ZonalKey(polys["polygons"][:100], polys["coords"][:])
-    print(stats_convert(zk.stats()))
+    print("build rt")
+    rt = pip.PolyRTree(polys["polygons"][:100], polys["coords"][:])
+    print(stats_convert(rt.stats()))
 
-    print("test zk")
-    results = zk.test(points["coords"][:])
-    print(stats_convert(zk.stats()))
+    print("test rt")
+    results = rt.test(points["coords"][:])
+    print(stats_convert(rt.stats()))
     # results = [(i, s)
     #            for i, s in zip(range(len(results)), results) if len(s) != 0]
 
-    print("test_para zk")
-    results_para = zk.test_para(points["coords"][:])
-    print(stats_convert(zk.stats()))
+    print("test_para rt")
+    results_para = rt.test_para(points["coords"][:])
+    print(stats_convert(rt.stats()))
 
     # results_para = [(i, s)
     #                 for i, s in zip(range(len(results_para)), results_para) if len(s) != 0]
