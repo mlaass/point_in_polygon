@@ -23,7 +23,7 @@ if __name__ == "__main__":
     points = h5py.File(cfg.pointfile, "r")
 
     print("build zk")
-    zk = pip.ZonalKey(polys["polygons"][:200], polys["coords"][:])
+    zk = pip.ZonalKey(polys["polygons"][:100], polys["coords"][:])
     print(stats_convert(zk.stats()))
 
     print("test zk")
@@ -42,9 +42,4 @@ if __name__ == "__main__":
     rd = dict(results)
     rdp = dict(results_para)
     print(len(results), len(results_para))
-    for r in rd:
-        if(not r in rdp):
-            print("not in rdp: ", r)
-        else:
-            if(rd[r] != rdp[r]):
-                print(r, rd[r], rdp[r])
+    print("equal results: ", rd == rdp)

@@ -126,13 +126,13 @@ std::ostream &operator<<(std::ostream &os, point3 const &p) {
 std::ostream &operator<<(std::ostream &os, point2 const &p) {
   return os << "(" << bg::get<0>(p) << ";" << bg::get<1>(p) << ")";
 }
-template <typename KEY = std::string> class ZonalKey {
-  typedef std::pair<box2, KEY> zk_value;
-  typedef bgi::rtree<zk_value, bgi::rstar<16, 4>> zk_rtree;
+template <typename KEY = std::string> class PolyRTree {
+  typedef std::pair<box2, KEY> value;
+  typedef bgi::rtree<value, bgi::rstar<16, 4>> rtree;
 
   std::map<KEY, polygon2> zones;
-  zk_rtree rt;
-  std::vector<zk_value> values;
+  rtree rt;
+  std::vector<value> values;
 
 public:
   std::map<std::string, int64_t> stats;
@@ -152,7 +152,7 @@ public:
 
   void buildTree() {
     // build an R tree for this dataset
-    rt = zk_rtree(values.begin(), values.end());
+    rt = rtree(values.begin(), values.end());
   }
 
   void readWKT(std::string filename) {
@@ -184,7 +184,7 @@ public:
     }
     std::cout << "Using " << values.size() << " polygons. " << std::endl;
     // build an R tree for this dataset
-    rt = zk_rtree(values.begin(), values.end());
+    rt = rtree(values.begin(), values.end());
   }
 
   // get spatial key
@@ -193,9 +193,9 @@ public:
     std::cout << "Intersecting point " << p << std::endl;
 #endif
     std::vector<KEY> out;
-    std::vector<zk_value> result;
+    std::vector<value> result;
     rt.query(bgi::intersects(p),
-             boost::make_function_output_iterator([&](zk_value const &val) {
+             boost::make_function_output_iterator([&](value const &val) {
                if (bg::within(p, zones[val.second])) {
 #ifdef DEBUG_ZONAL
                  std::cout << "Found it to be part of " << val.second
@@ -209,15 +209,15 @@ public:
   }
 };
 
-template <typename KEY = std::string> class ZonalKeyMulti {
+template <typename KEY = std::string> class MultiPolyRTree {
   std::multimap<KEY, polygon2> zones;
-  typedef std::pair<box2, KEY> zk_value;
-  typedef bgi::rtree<zk_value, bgi::rstar<16, 4>> zk_rtree;
-  zk_rtree rt;
+  typedef std::pair<box2, KEY> value;
+  typedef bgi::rtree<value, bgi::rstar<16, 4>> rtree;
+  rtree rt;
 
 public:
   void readWKT(std::string filename) {
-    std::vector<zk_value> values;
+    std::vector<value> values;
     // a zone definition file contains
     std::ifstream ifs(filename);
     std::string line;
@@ -253,7 +253,7 @@ public:
     }
     std::cout << "Using " << values.size() << " polygons. " << std::endl;
     // build an R tree for this dataset
-    rt = zk_rtree(values.begin(), values.end());
+    rt = rtree(values.begin(), values.end());
   }
   // get spatial key
   std::vector<KEY> test(point2 p) {
@@ -261,9 +261,9 @@ public:
     std::cout << "Intersecting point " << p << std::endl;
 #endif
     std::vector<std::string> out;
-    std::vector<zk_value> result;
+    std::vector<value> result;
     rt.query(bgi::intersects(p),
-             boost::make_function_output_iterator([&](zk_value const &val) {
+             boost::make_function_output_iterator([&](value const &val) {
                auto r = zones.equal_range(val.second);
                polygon2 poly;
                std::string key;

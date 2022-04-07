@@ -63,11 +63,11 @@ void map_matrix(const py::array_t<double> &self,
 
 // The module begins
 PYBIND11_MODULE(point_in_polygon, m) {
-  m.doc() = "PIP is point in polygon tests";
-  py::class_<PIP::ZonalKey<uint32_t>>(m, "ZonalKey")
+  m.doc() = "point_in_polygon does point in polygon tests";
+  py::class_<PIP::PolyRTree<uint32_t>>(m, "PolyRTree")
       .def(py::init(
           [](py::array_t<uint32_t> polygons, py::array_t<_Float32> coords) {
-            auto self = new PIP::ZonalKey<uint32_t>();
+            auto self = new PIP::PolyRTree<uint32_t>();
             auto p = polygons.unchecked<2>();
             auto c = coords.unchecked<2>();
             if (p.shape(1) != 2) {
@@ -102,7 +102,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
           }))
       .def(
           "test",
-          +[](PIP::ZonalKey<uint32_t> &self, py::array_t<_Float32> coords) {
+          +[](PIP::PolyRTree<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -132,7 +132,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
           })
       .def(
           "test_para",
-          +[](PIP::ZonalKey<uint32_t> &self, py::array_t<_Float32> coords) {
+          +[](PIP::PolyRTree<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -157,7 +157,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
             return res;
           })
       .def(
-          "stats", +[](PIP::ZonalKey<uint32_t> &self) { return self.stats; })
+          "stats", +[](PIP::PolyRTree<uint32_t> &self) { return self.stats; })
 
       ;
 }
