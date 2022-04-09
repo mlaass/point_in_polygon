@@ -24,22 +24,41 @@ if __name__ == "__main__":
 
     print("build rt")
     rt = pip.PolyRTree(polys["polygons"][:100], polys["coords"][:])
-    print(stats_convert(rt.stats()))
 
     print("test rt")
-    results = rt.test(points["coords"][:])
-    print(stats_convert(rt.stats()))
-    # results = [(i, s)
-    #            for i, s in zip(range(len(results)), results) if len(s) != 0]
+    rt_results = rt.test(points["coords"][:])
 
     print("test_para rt")
-    results_para = rt.test_para(points["coords"][:])
+    rt_results_para = rt.test_para(points["coords"][:])
+    rt_rd = dict(rt_results)
+    rt_rdp = dict(rt_results_para)
+    print(len(rt_results), len(rt_results_para))
+    print("equal results: ", rt_rd == rt_rd)
+
+    print("***********************")
+
+    print("build box list")
+    bl = pip.PolyBoxList(polys["polygons"][:100], polys["coords"][:])
+
+    print("test bl crossing")
+    bl_results_crossing = bl.test_crossing(points["coords"][:])
+    bl_rcr = dict(bl_results_crossing)
+
+    print("test bl crossing para")
+    bl_results_crossing_para = bl.test_crossing_para(points["coords"][:])
+    bl_rcrp = dict(bl_results_crossing_para)
+
+    print("test bl crossing para2")
+    bl_results_crossing_para2 = bl.test_crossing_para2(points["coords"][:])
+    bl_rcrp2 = dict(bl_results_crossing_para2)
+
+    # print("test bl winding")
+    # results_winding = bl.test_winding(points["coords"][:])
+    # bl_rwd = dict(results_winding)
     print(stats_convert(rt.stats()))
+    print(stats_convert(bl.stats()))
 
-    # results_para = [(i, s)
-    #                 for i, s in zip(range(len(results_para)), results_para) if len(s) != 0]
-
-    rd = dict(results)
-    rdp = dict(results_para)
-    print(len(results), len(results_para))
-    print("equal results: ", rd == rdp)
+    print(len(bl_results_crossing), len(
+        rt_results), len(bl_results_crossing_para), len(bl_results_crossing_para2))
+    print("equal results: ", bl_rcr == rt_rd,
+          rt_rd == bl_rcrp,  bl_rcrp == bl_rcrp2)

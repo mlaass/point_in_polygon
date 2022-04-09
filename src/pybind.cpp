@@ -11,7 +11,8 @@ namespace py = pybind11;
 // This holds the actual implementation. Copy this header to your projects (and
 // a hasher, for example murmur.hpp)
 
-#include "pip.hpp"
+#include "pip_rtree.hpp"
+#include "pip_simple.hpp"
 #include "timer.hpp"
 
 // Wrap 2D C++ array (given as pointer) to a numpy object.
@@ -124,9 +125,9 @@ PYBIND11_MODULE(point_in_polygon, m) {
             }
             const auto t1{clock.elapsed()};
             const auto t2{clock2.elapsed()};
-            self.stats["test_points_count"] = c.shape(0);
-            self.stats["test_points_ns"] = t1;
-            self.stats["test_points_wcpy_ns"] = t2;
+            self.stats["test_count"] = c.shape(0);
+            self.stats["test_ns"] = t1;
+            self.stats["test_wcpy_ns"] = t2;
 
             return res;
           })
@@ -151,13 +152,173 @@ PYBIND11_MODULE(point_in_polygon, m) {
               }
             }
             const auto t1{clock.elapsed()};
-            self.stats["test_para_points_count"] = c.shape(0);
-            self.stats["test_para_points_wcpy_ns"] = t1;
+            self.stats["test_para_count"] = c.shape(0);
+            self.stats["test_para_wcpy_ns"] = t1;
 
             return res;
           })
       .def(
-          "stats", +[](PIP::PolyRTree<uint32_t> &self) { return self.stats; })
+          "stats", +[](PIP::PolyRTree<uint32_t> &self) { return self.stats; });
+  py::class_<PIP::BoxList<uint32_t>>(m, "PolyBoxList")
+      .def(py::init(
+          [](py::array_t<uint32_t> polygons, py::array_t<_Float32> coords) {
+            auto self = new PIP::BoxList<uint32_t>();
+            auto p = polygons.unchecked<2>();
+            auto c = coords.unchecked<2>();
+            if (p.shape(1) != 2) {
+              throw std::runtime_error("polygons input shape must be (n, 2)");
+            }
+            if (c.shape(1) != 2) {
+              throw std::runtime_error("coords input shape must be (n, 2)");
+            }
+            timer::clock clock{};
+
+            for (auto i = 0; i < p.shape(0); i++) {
+
+              PIP::polygon2 poly;
+              std::vector<PIP::point2> points;
+              size_t start = p(i, 0);
+              for (size_t j = 0; j < p(i, 1); ++j) {
+                points.push_back(PIP::point2(c(start + j, 0), c(start + j, 1)));
+              }
+              self->addPolygon((uint32_t)i, points);
+            }
+            const auto t1{clock.reset()};
+
+            self->stats["construct_polygons_ns"] = t1;
+            self->stats["polygon_count"] = p.shape(0);
+            self->stats["coord_count"] = c.shape(0);
+            return self;
+          }))
+      .def(
+          "test_crossing",
+          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+            auto c = coords.unchecked<2>();
+            if (c.shape(1) < 2) {
+              throw std::runtime_error(
+                  "coords input shape must be at least (n, 2)");
+            }
+            std::vector<std::tuple<uint32_t, std::set<uint32_t>>> res;
+
+            timer::clock clock{};
+            timer::clock clock2{};
+
+            for (auto i = 0; i < c.shape(0); ++i) {
+              auto t = self.test_crossing(PIP::point2(c(i, 0), c(i, 1)));
+              if (t.size() > 0) {
+                clock.pause();
+                std::set<uint32_t> set(t.begin(), t.end());
+                res.push_back(std::make_tuple(i, set));
+                clock.resume();
+              }
+            }
+            const auto t1{clock.elapsed()};
+            const auto t2{clock2.elapsed()};
+            self.stats["test_crossing_count"] = c.shape(0);
+            self.stats["test_crossing_ns"] = t1;
+            self.stats["test_crossing_wcpy_ns"] = t2;
+
+            return res;
+          })
+      .def(
+          "test_crossing_para",
+          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+            auto c = coords.unchecked<2>();
+            if (c.shape(1) < 2) {
+              throw std::runtime_error(
+                  "coords input shape must be at least (n, 2)");
+            }
+            std::vector<std::tuple<uint32_t, std::set<uint32_t>>> res;
+
+            timer::clock clock{};
+            timer::clock clock2{};
+#pragma omp parallel for
+            for (auto i = 0; i < c.shape(0); ++i) {
+              auto t = self.test_crossing(PIP::point2(c(i, 0), c(i, 1)));
+
+              if (t.size() > 0) {
+                clock.pause();
+                std::set<uint32_t> set(t.begin(), t.end());
+#pragma omp critical
+                res.push_back(std::make_tuple(i, set));
+                clock.resume();
+              }
+            }
+            const auto t1{clock.elapsed()};
+            const auto t2{clock2.elapsed()};
+            self.stats["test_crossing_para_count"] = c.shape(0);
+            self.stats["test_crossing_para_ns"] = t1;
+            self.stats["test_crossing_para_wcpy_ns"] = t2;
+
+            return res;
+          })
+      .def(
+          "test_crossing_para2",
+          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+            auto c = coords.unchecked<2>();
+            if (c.shape(1) < 2) {
+              throw std::runtime_error(
+                  "coords input shape must be at least (n, 2)");
+            }
+            std::vector<std::tuple<uint32_t, std::set<uint32_t>>> res;
+
+            timer::clock clock{};
+            timer::clock clock2{};
+
+#pragma omp parallel for
+            for (auto i = 0; i < c.shape(0); ++i) {
+              auto t = self.test_crossing_para(PIP::point2(c(i, 0), c(i, 1)));
+
+              if (t.size() > 0) {
+                clock.pause();
+                std::set<uint32_t> set(t.begin(), t.end());
+
+#pragma omp critical
+                res.push_back(std::make_tuple(i, set));
+                clock.resume();
+              }
+            }
+            const auto t1{clock.elapsed()};
+            const auto t2{clock2.elapsed()};
+            self.stats["test_crossing_para2_count"] = c.shape(0);
+            self.stats["test_crossing_para2_ns"] = t1;
+            self.stats["test_crossing_para2_wcpy_ns"] = t2;
+
+            return res;
+          })
+      .def(
+          "test_winding",
+          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+            auto c = coords.unchecked<2>();
+            if (c.shape(1) < 2) {
+              throw std::runtime_error(
+                  "coords input shape must be at least (n, 2)");
+            }
+            std::vector<std::tuple<uint32_t, std::set<uint32_t>>> res;
+
+            timer::clock clock{};
+            timer::clock clock2{};
+
+            for (auto i = 0; i < c.shape(0); ++i) {
+              auto t = self.test_winding(PIP::point2(c(i, 0), c(i, 1)));
+              if (t.size() > 0) {
+                clock.pause();
+                std::set<uint32_t> set(t.begin(), t.end());
+                res.push_back(std::make_tuple(i, set));
+                clock.resume();
+              }
+            }
+            const auto t1{clock.elapsed()};
+            const auto t2{clock2.elapsed()};
+            self.stats["test_winding_points_count"] = c.shape(0);
+            self.stats["test_winding_points_ns"] = t1;
+            self.stats["test_winding_points_wcpy_ns"] = t2;
+
+            return res;
+          })
+
+      .def(
+          "stats", +[](PIP::BoxList<uint32_t> &self) { return self.stats; })
 
       ;
 }
