@@ -164,6 +164,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
           })
       .def(
           "stats", +[](PIP::PolyRTree<uint32_t> &self) { return self.stats; });
+
   py::class_<PIP::BoxList<uint32_t>>(m, "PolyBoxList")
       .def(py::init(
           [](py::array_t<uint32_t> polygons, py::array_t<_Float32> coords) {
@@ -222,6 +223,44 @@ PYBIND11_MODULE(point_in_polygon, m) {
             self.stats["test_crossing_count"] = c.shape(0);
             self.stats["test_crossing_ns"] = t1;
             self.stats["test_crossing_wcpy_ns"] = t2;
+
+            return res;
+          })
+      .def(
+          "build_rtree",
+          +[](PIP::BoxList<uint32_t> &self) {
+            timer::clock clock{};
+            self.build_rtree();
+            const auto t1{clock.elapsed()};
+            self.stats["build_rtree_ns"] = t1;
+          })
+      .def(
+          "test_crossing_rt",
+          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+            auto c = coords.unchecked<2>();
+            if (c.shape(1) < 2) {
+              throw std::runtime_error(
+                  "coords input shape must be at least (n, 2)");
+            }
+            std::vector<std::tuple<uint32_t, std::set<uint32_t>>> res;
+
+            timer::clock clock{};
+            timer::clock clock2{};
+
+            for (auto i = 0; i < c.shape(0); ++i) {
+              auto t = self.test_crossing_rt(PIP::point2(c(i, 0), c(i, 1)));
+              if (t.size() > 0) {
+                clock.pause();
+                std::set<uint32_t> set(t.begin(), t.end());
+                res.push_back(std::make_tuple(i, set));
+                clock.resume();
+              }
+            }
+            const auto t1{clock.elapsed()};
+            const auto t2{clock2.elapsed()};
+            self.stats["test_crossing_rt_count"] = c.shape(0);
+            self.stats["test_crossing_rt_ns"] = t1;
+            self.stats["test_crossing_rt_wcpy_ns"] = t2;
 
             return res;
           })
@@ -386,7 +425,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
 
             return res;
           })
-        .def(
+      .def(
           "stats", +[](PIP::OpenCLImpl<uint32_t> &self) { return self.stats; })
 
       ;

@@ -18,7 +18,7 @@ def stats_convert(stats):
 
 
 if __name__ == "__main__":
-    poly_count = 300
+    poly_count = 200
     print("start")
     polys = h5py.File(cfg.polyfile, "r")
     points = h5py.File(cfg.pointfile, "r")
@@ -45,6 +45,11 @@ if __name__ == "__main__":
     print("test bl crossing")
     bl_results_crossing = bl.test_crossing(points["coords"][:])
     bl_rcr = dict(bl_results_crossing)
+
+    print("test bl crossing rt")
+    bl.build_rtree()
+    bl_results_crossing_rt = bl.test_crossing_rt(points["coords"][:])
+    bl_rcr_rt = dict(bl_results_crossing_rt)
 
     print("test bl crossing para")
     bl_results_crossing_para = bl.test_crossing_para(points["coords"][:])

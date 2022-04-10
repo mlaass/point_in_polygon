@@ -20,11 +20,18 @@ inline int isLeft(const point2 &P0, const point2 &P1, const point2 &P2) {
 }
 
 template <typename KEY = std::string> struct BoxList {
-typedef std::pair<point2, point2> edge;
-typedef std::vector<edge> simple_polygon;
+  typedef std::pair<point2, point2> edge;
+  typedef std::vector<edge> simple_polygon;
+  typedef std::pair<box2, size_t> rt_value;
+  typedef bgi::rtree<rt_value, bgi::rstar<16, 4>> rtree;
+
   std::vector<box2> boxes;
   std::vector<simple_polygon> polygons;
   std::map<size_t, KEY> keys;
+
+  rtree rt;
+
+  std::map<std::string, int64_t> stats;
 
   static bool ptest_crossing(const point2 &p, const simple_polygon &poly) {
     int cn = 0; // the  crossing number counter
@@ -76,8 +83,6 @@ typedef std::vector<edge> simple_polygon;
     return wn;
   }
 
-  std::map<std::string, int64_t> stats;
-
   void addPolygon(const KEY &key, const std::vector<point2> &p) {
     point2 mn{FLT_MAX, FLT_MAX}, mx{FLT_MIN, FLT_MIN};
     simple_polygon poly;
@@ -96,6 +101,13 @@ typedef std::vector<edge> simple_polygon;
     polygons.push_back(poly);
     boxes.push_back(box2(mn, mx));
   }
+  void build_rtree() {
+    std::vector<rt_value> values;
+    for (size_t i = 0; i < boxes.size(); ++i) {
+      values.push_back(std::make_pair(boxes[i], i));
+      rt = rtree(values.begin(), values.end());
+    }
+  }
   std::vector<KEY>
   test_fn(const point2 &p,
           std::function<bool(const point2 &, const simple_polygon &)> fn) {
@@ -108,6 +120,19 @@ typedef std::vector<edge> simple_polygon;
         }
       }
     }
+    return res;
+  }
+  std::vector<KEY>
+  test_fn_rt(const point2 &p,
+             std::function<bool(const point2 &, const simple_polygon &)> fn) {
+    std::vector<KEY> res;
+    rt.query(bgi::intersects(p),
+             boost::make_function_output_iterator([&](rt_value const &val) {
+               if (fn(p, polygons[val.second])) {
+                 res.push_back(keys[val.second]);
+               }
+             }));
+
     return res;
   }
   std::vector<KEY>
@@ -129,13 +154,16 @@ typedef std::vector<edge> simple_polygon;
   std::vector<KEY> test_crossing(const point2 &p) {
     return test_fn(p, ptest_crossing);
   }
-  std::vector<KEY> test_crossing_para(const point2 &p) {
-    return test_fn_para(p, ptest_crossing);
+  std::vector<KEY> test_crossing_rt(const point2 &p) {
+    return test_fn_rt(p, ptest_crossing);
   }
   std::vector<KEY> test_winding(const point2 &p) {
     return test_fn(p, ptest_winding);
   }
-};
+  std::vector<KEY> test_crossing_para(const point2 &p) {
+    return test_fn_para(p, ptest_crossing);
+  }
+}; // namespace PIP
 
 } // namespace PIP
 
