@@ -10,9 +10,12 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS " -fopenmp -march=native -std=c++17 -fPIC -I/usr/include/hdf5/serial -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5_cpp")
+set(CMAKE_CXX_FLAGS " -fopenmp -march=native -std=c++17 -fPIC ")
+# set(CMAKE_CXX_FLAGS " -fopenmp -march=native -std=c++17 -fPIC -lOpenCL -I/usr/include/hdf5/serial -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5_cpp")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
+
+find_package(OpenCL REQUIRED)
 
 # Set source directory
 
@@ -20,14 +23,21 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
 include_directories(${SOURCE_DIR})
 
 set(PYBIND_SOURCES
-    src/pybind.cpp
+src/pybind.cpp
 )
 
 # Generate Python module
 add_subdirectory(lib/pybind11)
-pybind11_add_module(point_in_polygon ${PYBIND_SOURCES})
+# pybind11_add_module(point_in_polygon ${PYBIND_SOURCES})
+add_library(point_in_polygon MODULE ${PYBIND_SOURCES})
+
+target_link_libraries(point_in_polygon PRIVATE OpenCL::OpenCL pybind11::module pybind11::lto pybind11::windows_extras)
+
+pybind11_extension(point_in_polygon)
+pybind11_strip(point_in_polygon)
+
 target_compile_definitions(point_in_polygon
-                           PRIVATE VERSION_INFO=${POINT_IN_POLYGON_VERSION_INFO})
+PRIVATE VERSION_INFO=${POINT_IN_POLYGON_VERSION_INFO})
 
 set(HIGHFIVE_USE_BOOST OFF)
 set(HIGHFIVE_EXAMPLES OFF)

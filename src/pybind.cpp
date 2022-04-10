@@ -11,6 +11,7 @@ namespace py = pybind11;
 // This holds the actual implementation. Copy this header to your projects (and
 // a hasher, for example murmur.hpp)
 
+#include "pip_opencl.hpp"
 #include "pip_rtree.hpp"
 #include "pip_simple.hpp"
 #include "timer.hpp"
@@ -65,6 +66,10 @@ void map_matrix(const py::array_t<double> &self,
 // The module begins
 PYBIND11_MODULE(point_in_polygon, m) {
   m.doc() = "point_in_polygon does point in polygon tests";
+
+  m.def(
+      "test_opencl", +[]() { return PIP::test_opencl(); });
+
   py::class_<PIP::PolyRTree<uint32_t>>(m, "PolyRTree")
       .def(py::init(
           [](py::array_t<uint32_t> polygons, py::array_t<_Float32> coords) {
@@ -319,6 +324,70 @@ PYBIND11_MODULE(point_in_polygon, m) {
 
       .def(
           "stats", +[](PIP::BoxList<uint32_t> &self) { return self.stats; })
+
+      ;
+
+  py::class_<PIP::OpenCLImpl<uint32_t>>(m, "OpenCLImpl")
+      .def(py::init(
+          [](py::array_t<uint32_t> polygons, py::array_t<_Float32> coords) {
+            auto self = new PIP::OpenCLImpl<uint32_t>();
+            auto p = polygons.unchecked<2>();
+            auto c = coords.unchecked<2>();
+            if (p.shape(1) != 2) {
+              throw std::runtime_error("polygons input shape must be (n, 2)");
+            }
+            if (c.shape(1) != 2) {
+              throw std::runtime_error("coords input shape must be (n, 2)");
+            }
+            timer::clock clock{};
+
+            for (auto i = 0; i < p.shape(0); i++) {
+
+              std::vector<PIP::point2> points;
+              size_t start = p(i, 0);
+              for (size_t j = 0; j < p(i, 1); ++j) {
+                points.push_back(PIP::point2(c(start + j, 0), c(start + j, 1)));
+              }
+              self->addPolygon((uint32_t)i, points);
+            }
+            const auto t1{clock.reset()};
+
+            self->stats["construct_polygons_ns"] = t1;
+            self->stats["polygon_count"] = p.shape(0);
+            self->stats["coord_count"] = c.shape(0);
+            return self;
+          }))
+      .def(
+          "test_naive",
+          +[](PIP::OpenCLImpl<uint32_t> &self, py::array_t<_Float32> coords) {
+            auto c = coords.unchecked<2>();
+            if (c.shape(1) < 2) {
+              throw std::runtime_error(
+                  "coords input shape must be at least (n, 2)");
+            }
+            std::vector<std::tuple<uint32_t, std::set<uint32_t>>> res;
+
+            timer::clock clock{};
+            timer::clock clock2{};
+            std::vector<float> points;
+
+            clock.pause();
+            for (auto i = 0; i < c.shape(0); ++i) {
+              points.push_back(c(i, 0));
+              points.push_back(c(i, 1));
+            }
+            clock.resume();
+            res = self.test_naive(&points[0], (size_t)c.shape(0));
+            const auto t1{clock.elapsed()};
+            const auto t2{clock2.elapsed()};
+            self.stats["test_naive_count"] = c.shape(0);
+            self.stats["test_naive_ns"] = t1;
+            self.stats["test_naive_wcpy_ns"] = t2;
+
+            return res;
+          })
+        .def(
+          "stats", +[](PIP::OpenCLImpl<uint32_t> &self) { return self.stats; })
 
       ;
 }

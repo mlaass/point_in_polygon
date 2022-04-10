@@ -12,8 +12,6 @@
 #include "pip_points.hpp"
 
 namespace PIP {
-typedef std::pair<point2, point2> edge;
-typedef std::vector<edge> simple_polygon;
 
 // https://web.archive.org/web/20130126163405/http://geomalgorithms.com/a03-_inclusion.html
 
@@ -22,6 +20,8 @@ inline int isLeft(const point2 &P0, const point2 &P1, const point2 &P2) {
 }
 
 template <typename KEY = std::string> struct BoxList {
+typedef std::pair<point2, point2> edge;
+typedef std::vector<edge> simple_polygon;
   std::vector<box2> boxes;
   std::vector<simple_polygon> polygons;
   std::map<size_t, KEY> keys;
