@@ -17,6 +17,15 @@ def stats_convert(stats):
     return stats
 
 
+def print_times(stats):
+    stats = stats_convert(stats)
+    stats = dict(filter(lambda e: e[0].endswith("_s"), stats.items()))
+    stats = dict(sorted(stats.items(), key=lambda e: e[1]))
+    for s in list(stats.keys()):
+        if s.endswith("_s"):
+            print(f"{s}: ", stats[s])
+
+
 if __name__ == "__main__":
     poly_count = 200
     print("start")
@@ -51,6 +60,10 @@ if __name__ == "__main__":
     bl_results_crossing_rt = bl.test_crossing_rt(points["coords"][:])
     bl_rcr_rt = dict(bl_results_crossing_rt)
 
+    print("test bl crossing rt para")
+    bl_results_crossing_rt_para = bl.test_crossing_rt_para(points["coords"][:])
+    bl_rcr_rtp = dict(bl_results_crossing_rt_para)
+
     print("test bl crossing para")
     bl_results_crossing_para = bl.test_crossing_para(points["coords"][:])
     bl_rcrp = dict(bl_results_crossing_para)
@@ -63,8 +76,8 @@ if __name__ == "__main__":
     # results_winding = bl.test_winding(points["coords"][:])
     # bl_rwd = dict(results_winding)
 
-    print(stats_convert(rt.stats()))
-    print(stats_convert(bl.stats()))
+    # print(stats_convert(rt.stats()))
+    # print(stats_convert(bl.stats()))
 
     print(len(bl_results_crossing), len(
         rt_results_para), len(bl_results_crossing_para), len(bl_results_crossing_para2))
@@ -79,7 +92,13 @@ if __name__ == "__main__":
     print("test ocl")
     ocl_results_naive = ocl.test_naive(points["coords"][:])
     ocl_rn = dict(ocl_results_naive)
-    print(len(bl_results), len(ocl_results_naive))
+    print(len(bl_results_crossing), len(ocl_results_naive))
     print("equal results: ", bl_rcr == ocl_rn)
 
-    print(stats_convert(ocl.stats()))
+    # print(stats_convert(ocl.stats()))
+    print("===> boost polygon\n")
+    print_times(rt.stats())
+    print("===> simple polygon\n")
+    print_times(bl.stats())
+    print("===> opencl\n")
+    print_times(ocl.stats())

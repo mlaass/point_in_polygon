@@ -265,6 +265,37 @@ PYBIND11_MODULE(point_in_polygon, m) {
             return res;
           })
       .def(
+          "test_crossing_rt_para",
+          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+            auto c = coords.unchecked<2>();
+            if (c.shape(1) < 2) {
+              throw std::runtime_error(
+                  "coords input shape must be at least (n, 2)");
+            }
+            std::vector<std::tuple<uint32_t, std::set<uint32_t>>> res;
+
+            timer::clock clock{};
+            timer::clock clock2{};
+#pragma omp parallel for
+            for (auto i = 0; i < c.shape(0); ++i) {
+              auto t = self.test_crossing_rt(PIP::point2(c(i, 0), c(i, 1)));
+              if (t.size() > 0) {
+                clock.pause();
+                std::set<uint32_t> set(t.begin(), t.end());
+#pragma omp critical
+                res.push_back(std::make_tuple(i, set));
+                clock.resume();
+              }
+            }
+            const auto t1{clock.elapsed()};
+            const auto t2{clock2.elapsed()};
+            self.stats["test_crossing_rt_para_count"] = c.shape(0);
+            self.stats["test_crossing_rt_para_ns"] = t1;
+            self.stats["test_crossing_rt_para_wcpy_ns"] = t2;
+
+            return res;
+          })
+      .def(
           "test_crossing_para",
           +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
