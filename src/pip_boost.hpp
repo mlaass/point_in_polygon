@@ -1,5 +1,5 @@
-#ifndef PIP_RTREE_INCLUDE
-#define PIP_RTREE_INCLUDE
+#ifndef PIP_BOOST_INCLUDE
+#define PIP_BOOST_INCLUDE
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -60,7 +60,7 @@ std::ostream &operator<<(std::ostream &os, point3 const &p) {
 std::ostream &operator<<(std::ostream &os, point2 const &p) {
   return os << "(" << bg::get<0>(p) << ";" << bg::get<1>(p) << ")";
 }
-template <typename KEY = std::string> class PolyRTree {
+template <typename KEY = std::string> class PolyBoost {
   typedef std::pair<box2, KEY> value;
   typedef bgi::rtree<value, bgi::rstar<16, 4>> rtree;
 

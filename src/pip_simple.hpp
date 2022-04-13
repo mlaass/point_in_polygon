@@ -19,21 +19,21 @@ inline int isLeft(const point2 &P0, const point2 &P1, const point2 &P2) {
   return ((P1.x - P0.x) * (P2.y - P0.y) - (P2.x - P0.x) * (P1.y - P0.y));
 }
 
-template <typename KEY = std::string> struct BoxList {
+template <typename KEY = std::string> struct PolyEdgeList {
   typedef std::pair<point2, point2> edge;
-  typedef std::vector<edge> simple_polygon;
+  typedef std::vector<edge> el_polygon;
   typedef std::pair<box2, size_t> rt_value;
   typedef bgi::rtree<rt_value, bgi::rstar<16, 4>> rtree;
 
   std::vector<box2> boxes;
-  std::vector<simple_polygon> polygons;
+  std::vector<el_polygon> polygons;
   std::map<size_t, KEY> keys;
 
   rtree rt;
 
   std::map<std::string, int64_t> stats;
 
-  static bool ptest_crossing(const point2 &p, const simple_polygon &poly) {
+  static bool ptest(const point2 &p, const el_polygon &poly) {
     int cn = 0; // the  crossing number counter
 
     // loop through all edges of the polygon
@@ -48,7 +48,7 @@ template <typename KEY = std::string> struct BoxList {
     }
     return (cn & 1); // 0 if even (out), and 1 if  odd (in)
   }
-  static bool ptest_crossing_para(const point2 &p, const simple_polygon &poly) {
+  static bool ptest_para(const point2 &p, const el_polygon &poly) {
     int cn = 0;
 #pragma omp parallel for
     for (auto i = 0; i < poly.size(); ++i) {
@@ -65,7 +65,7 @@ template <typename KEY = std::string> struct BoxList {
     }
     return (cn & 1); // 0 if even (out), and 1 if  odd (in)
   }
-  static bool ptest_winding(const point2 &p, const simple_polygon &poly) {
+  static bool ptest_winding(const point2 &p, const el_polygon &poly) {
     int wn = 0; // the  winding number counter
 
     // loop through all edges of the polygon
@@ -85,7 +85,7 @@ template <typename KEY = std::string> struct BoxList {
 
   void addPolygon(const KEY &key, const std::vector<point2> &p) {
     point2 mn{FLT_MAX, FLT_MAX}, mx{FLT_MIN, FLT_MIN};
-    simple_polygon poly;
+    el_polygon poly;
     for (size_t i = 0; i < p.size(); ++i) {
       mn.x = std::min(mn.x, p[i].x);
       mn.y = std::min(mn.y, p[i].y);
@@ -110,7 +110,7 @@ template <typename KEY = std::string> struct BoxList {
   }
   std::vector<KEY>
   test_fn(const point2 &p,
-          std::function<bool(const point2 &, const simple_polygon &)> fn) {
+          std::function<bool(const point2 &, const el_polygon &)> fn) {
     std::vector<KEY> res;
     for (size_t i = 0; i < polygons.size(); i++) {
       if (bg::within(p, boxes[i])) { // check box first
@@ -124,7 +124,7 @@ template <typename KEY = std::string> struct BoxList {
   }
   std::vector<KEY>
   test_fn_rt(const point2 &p,
-             std::function<bool(const point2 &, const simple_polygon &)> fn) {
+             std::function<bool(const point2 &, const el_polygon &)> fn) {
     std::vector<KEY> res;
     rt.query(bgi::intersects(p),
              boost::make_function_output_iterator([&](rt_value const &val) {
@@ -137,7 +137,7 @@ template <typename KEY = std::string> struct BoxList {
   }
   std::vector<KEY>
   test_fn_para(const point2 &p,
-               std::function<bool(const point2 &, const simple_polygon &)> fn) {
+               std::function<bool(const point2 &, const el_polygon &)> fn) {
     std::vector<KEY> res;
 #pragma omp parallel for
     for (size_t i = 0; i < polygons.size(); i++) {
@@ -151,19 +151,13 @@ template <typename KEY = std::string> struct BoxList {
     }
     return res;
   }
-  std::vector<KEY> test_crossing(const point2 &p) {
-    return test_fn(p, ptest_crossing);
-  }
-  std::vector<KEY> test_crossing_rt(const point2 &p) {
-    return test_fn_rt(p, ptest_crossing);
-  }
+  std::vector<KEY> test(const point2 &p) { return test_fn(p, ptest); }
+  std::vector<KEY> test_rt(const point2 &p) { return test_fn_rt(p, ptest); }
   std::vector<KEY> test_winding(const point2 &p) {
     return test_fn(p, ptest_winding);
   }
-  std::vector<KEY> test_crossing_para(const point2 &p) {
-    return test_fn_para(p, ptest_crossing);
-  }
-}; // namespace PIP
+  std::vector<KEY> test_para(const point2 &p) { return test_fn_para(p, ptest); }
+};
 
 } // namespace PIP
 

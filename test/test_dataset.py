@@ -28,77 +28,79 @@ def print_times(stats):
 
 if __name__ == "__main__":
     poly_count = 200
-    print("start")
+    print("poly_count: ", poly_count)
     polys = h5py.File(cfg.polyfile, "r")
     points = h5py.File(cfg.pointfile, "r")
 
-    print("build rt")
-    rt = pip.PolyRTree(polys["polygons"][:poly_count], polys["coords"][:])
+    print("build boost polys")
+    bt = pip.PolyBoost(polys["polygons"][:poly_count], polys["coords"][:])
 
-    # print("test rt")
-    # rt_results = rt.test(points["coords"][:])
-    rt_results = []
-    rt_rd = dict(rt_results)
+    bt_results = []
+    # too slow oterhwise
+    if(poly_count < 120):
+        print("test bt")
+        bt_results = bt.test(points["coords"][:])
+    bt_rd = dict(bt_results)
 
-    print("test_para rt")
-    rt_results_para = rt.test_para(points["coords"][:])
-    rt_rdp = dict(rt_results_para)
-    print(len(rt_results), len(rt_results_para))
-    print("equal results: ", rt_rd == rt_rdp)
+    print("test_para bt")
+    bt_results_para = bt.test_para(points["coords"][:])
+    bt_rdp = dict(bt_results_para)
+    print(len(bt_results), len(bt_results_para))
+    print("equal results: ", bt_rd == bt_rdp)
 
-    print("***********************")
+    print("\n***********************\n")
 
-    print("build box list")
-    bl = pip.PolyBoxList(polys["polygons"][:poly_count], polys["coords"][:])
+    print("build edge list polys")
+    el = pip.PolyEdgeList(polys["polygons"][:poly_count], polys["coords"][:])
 
-    print("test bl crossing")
-    bl_results_crossing = bl.test_crossing(points["coords"][:])
-    bl_rcr = dict(bl_results_crossing)
+    print("test el")
+    el_results = el.test(points["coords"][:])
+    el_rcr = dict(el_results)
 
-    print("test bl crossing rt")
-    bl.build_rtree()
-    bl_results_crossing_rt = bl.test_crossing_rt(points["coords"][:])
-    bl_rcr_rt = dict(bl_results_crossing_rt)
+    print("test el rt")
+    el.build_rtree()
+    el_results_rt = el.test_rt(points["coords"][:])
+    el_rcr_rt = dict(el_results_rt)
 
-    print("test bl crossing rt para")
-    bl_results_crossing_rt_para = bl.test_crossing_rt_para(points["coords"][:])
-    bl_rcr_rtp = dict(bl_results_crossing_rt_para)
+    print("test el rt para")
+    el_results_rt_para = el.test_rt_para(points["coords"][:])
+    el_rcr_rtp = dict(el_results_rt_para)
 
-    print("test bl crossing para")
-    bl_results_crossing_para = bl.test_crossing_para(points["coords"][:])
-    bl_rcrp = dict(bl_results_crossing_para)
+    print("test el para")
+    el_results_para = el.test_para(points["coords"][:])
+    el_rcrp = dict(el_results_para)
 
-    print("test bl crossing para2")
-    bl_results_crossing_para2 = bl.test_crossing_para2(points["coords"][:])
-    bl_rcrp2 = dict(bl_results_crossing_para2)
+    print("test el para2")
+    el_results_para2 = el.test_para2(points["coords"][:])
+    el_rcrp2 = dict(el_results_para2)
 
-    # print("test bl winding")
-    # results_winding = bl.test_winding(points["coords"][:])
-    # bl_rwd = dict(results_winding)
+    # print("test el winding")
+    # results_winding = el.test_winding(points["coords"][:])
+    # el_rwd = dict(results_winding)
 
-    # print(stats_convert(rt.stats()))
-    # print(stats_convert(bl.stats()))
+    # print(stats_convert(bt.stats()))
+    # print(stats_convert(el.stats()))
 
-    print(len(bl_results_crossing), len(
-        rt_results_para), len(bl_results_crossing_para), len(bl_results_crossing_para2))
-    print("equal results: ", bl_rcr == rt_rdp,
-          bl_rcr == bl_rcrp,  bl_rcrp == bl_rcrp2)
+    print(len(el_results), len(
+        bt_results_para), len(el_results_para), len(el_results_para2))
+    print("equal results: ", el_rcr == bt_rdp,
+          el_rcr == el_rcrp,  el_rcrp == el_rcrp2)
 
     print("\n***********************")
 
-    print("build opencl setup")
+    print("build opencl polys")
     ocl = pip.OpenCLImpl(polys["polygons"][:poly_count], polys["coords"][:])
 
     print("test ocl")
     ocl_results_naive = ocl.test_naive(points["coords"][:])
     ocl_rn = dict(ocl_results_naive)
-    print(len(bl_results_crossing), len(ocl_results_naive))
-    print("equal results: ", bl_rcr == ocl_rn)
+    print(len(el_results), len(ocl_results_naive))
+    print("equal results: ", el_rcr == ocl_rn)
 
     # print(stats_convert(ocl.stats()))
     print("===> boost polygon\n")
-    print_times(rt.stats())
-    print("===> simple polygon\n")
-    print_times(bl.stats())
+    print_times(bt.stats())
+    print("===> edge list polygon\n")
+    print_times(el.stats())
     print("===> opencl\n")
     print_times(ocl.stats())

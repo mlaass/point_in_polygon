@@ -11,8 +11,8 @@ namespace py = pybind11;
 // This holds the actual implementation. Copy this header to your projects (and
 // a hasher, for example murmur.hpp)
 
+#include "pip_boost.hpp"
 #include "pip_opencl.hpp"
-#include "pip_rtree.hpp"
 #include "pip_simple.hpp"
 #include "timer.hpp"
 
@@ -70,10 +70,10 @@ PYBIND11_MODULE(point_in_polygon, m) {
   m.def(
       "test_opencl", +[]() { return PIP::test_opencl(); });
 
-  py::class_<PIP::PolyRTree<uint32_t>>(m, "PolyRTree")
+  py::class_<PIP::PolyBoost<uint32_t>>(m, "PolyBoost")
       .def(py::init(
           [](py::array_t<uint32_t> polygons, py::array_t<_Float32> coords) {
-            auto self = new PIP::PolyRTree<uint32_t>();
+            auto self = new PIP::PolyBoost<uint32_t>();
             auto p = polygons.unchecked<2>();
             auto c = coords.unchecked<2>();
             if (p.shape(1) != 2) {
@@ -108,7 +108,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
           }))
       .def(
           "test",
-          +[](PIP::PolyRTree<uint32_t> &self, py::array_t<_Float32> coords) {
+          +[](PIP::PolyBoost<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -138,7 +138,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
           })
       .def(
           "test_para",
-          +[](PIP::PolyRTree<uint32_t> &self, py::array_t<_Float32> coords) {
+          +[](PIP::PolyBoost<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -163,12 +163,12 @@ PYBIND11_MODULE(point_in_polygon, m) {
             return res;
           })
       .def(
-          "stats", +[](PIP::PolyRTree<uint32_t> &self) { return self.stats; });
+          "stats", +[](PIP::PolyBoost<uint32_t> &self) { return self.stats; });
 
-  py::class_<PIP::BoxList<uint32_t>>(m, "PolyBoxList")
+  py::class_<PIP::PolyEdgeList<uint32_t>>(m, "PolyEdgeList")
       .def(py::init(
           [](py::array_t<uint32_t> polygons, py::array_t<_Float32> coords) {
-            auto self = new PIP::BoxList<uint32_t>();
+            auto self = new PIP::PolyEdgeList<uint32_t>();
             auto p = polygons.unchecked<2>();
             auto c = coords.unchecked<2>();
             if (p.shape(1) != 2) {
@@ -197,8 +197,8 @@ PYBIND11_MODULE(point_in_polygon, m) {
             return self;
           }))
       .def(
-          "test_crossing",
-          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+          "test",
+          +[](PIP::PolyEdgeList<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -210,7 +210,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
             timer::clock clock2{};
 
             for (auto i = 0; i < c.shape(0); ++i) {
-              auto t = self.test_crossing(PIP::point2(c(i, 0), c(i, 1)));
+              auto t = self.test(PIP::point2(c(i, 0), c(i, 1)));
               if (t.size() > 0) {
                 clock.pause();
                 std::set<uint32_t> set(t.begin(), t.end());
@@ -220,23 +220,23 @@ PYBIND11_MODULE(point_in_polygon, m) {
             }
             const auto t1{clock.elapsed()};
             const auto t2{clock2.elapsed()};
-            self.stats["test_crossing_count"] = c.shape(0);
-            self.stats["test_crossing_ns"] = t1;
-            self.stats["test_crossing_wcpy_ns"] = t2;
+            self.stats["test_count"] = c.shape(0);
+            self.stats["test_ns"] = t1;
+            self.stats["test_wcpy_ns"] = t2;
 
             return res;
           })
       .def(
           "build_rtree",
-          +[](PIP::BoxList<uint32_t> &self) {
+          +[](PIP::PolyEdgeList<uint32_t> &self) {
             timer::clock clock{};
             self.build_rtree();
             const auto t1{clock.elapsed()};
             self.stats["build_rtree_ns"] = t1;
           })
       .def(
-          "test_crossing_rt",
-          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+          "test_rt",
+          +[](PIP::PolyEdgeList<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -248,7 +248,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
             timer::clock clock2{};
 
             for (auto i = 0; i < c.shape(0); ++i) {
-              auto t = self.test_crossing_rt(PIP::point2(c(i, 0), c(i, 1)));
+              auto t = self.test_rt(PIP::point2(c(i, 0), c(i, 1)));
               if (t.size() > 0) {
                 clock.pause();
                 std::set<uint32_t> set(t.begin(), t.end());
@@ -258,15 +258,15 @@ PYBIND11_MODULE(point_in_polygon, m) {
             }
             const auto t1{clock.elapsed()};
             const auto t2{clock2.elapsed()};
-            self.stats["test_crossing_rt_count"] = c.shape(0);
-            self.stats["test_crossing_rt_ns"] = t1;
-            self.stats["test_crossing_rt_wcpy_ns"] = t2;
+            self.stats["test_rt_count"] = c.shape(0);
+            self.stats["test_rt_ns"] = t1;
+            self.stats["test_rt_wcpy_ns"] = t2;
 
             return res;
           })
       .def(
-          "test_crossing_rt_para",
-          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+          "test_rt_para",
+          +[](PIP::PolyEdgeList<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -278,7 +278,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
             timer::clock clock2{};
 #pragma omp parallel for
             for (auto i = 0; i < c.shape(0); ++i) {
-              auto t = self.test_crossing_rt(PIP::point2(c(i, 0), c(i, 1)));
+              auto t = self.test_rt(PIP::point2(c(i, 0), c(i, 1)));
               if (t.size() > 0) {
                 clock.pause();
                 std::set<uint32_t> set(t.begin(), t.end());
@@ -289,15 +289,15 @@ PYBIND11_MODULE(point_in_polygon, m) {
             }
             const auto t1{clock.elapsed()};
             const auto t2{clock2.elapsed()};
-            self.stats["test_crossing_rt_para_count"] = c.shape(0);
-            self.stats["test_crossing_rt_para_ns"] = t1;
-            self.stats["test_crossing_rt_para_wcpy_ns"] = t2;
+            self.stats["test_rt_para_count"] = c.shape(0);
+            self.stats["test_rt_para_ns"] = t1;
+            self.stats["test_rt_para_wcpy_ns"] = t2;
 
             return res;
           })
       .def(
-          "test_crossing_para",
-          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+          "test_para",
+          +[](PIP::PolyEdgeList<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -309,7 +309,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
             timer::clock clock2{};
 #pragma omp parallel for
             for (auto i = 0; i < c.shape(0); ++i) {
-              auto t = self.test_crossing(PIP::point2(c(i, 0), c(i, 1)));
+              auto t = self.test(PIP::point2(c(i, 0), c(i, 1)));
 
               if (t.size() > 0) {
                 clock.pause();
@@ -321,15 +321,15 @@ PYBIND11_MODULE(point_in_polygon, m) {
             }
             const auto t1{clock.elapsed()};
             const auto t2{clock2.elapsed()};
-            self.stats["test_crossing_para_count"] = c.shape(0);
-            self.stats["test_crossing_para_ns"] = t1;
-            self.stats["test_crossing_para_wcpy_ns"] = t2;
+            self.stats["test_para_count"] = c.shape(0);
+            self.stats["test_para_ns"] = t1;
+            self.stats["test_para_wcpy_ns"] = t2;
 
             return res;
           })
       .def(
-          "test_crossing_para2",
-          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+          "test_para2",
+          +[](PIP::PolyEdgeList<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -342,7 +342,7 @@ PYBIND11_MODULE(point_in_polygon, m) {
 
 #pragma omp parallel for
             for (auto i = 0; i < c.shape(0); ++i) {
-              auto t = self.test_crossing_para(PIP::point2(c(i, 0), c(i, 1)));
+              auto t = self.test_para(PIP::point2(c(i, 0), c(i, 1)));
 
               if (t.size() > 0) {
                 clock.pause();
@@ -355,15 +355,15 @@ PYBIND11_MODULE(point_in_polygon, m) {
             }
             const auto t1{clock.elapsed()};
             const auto t2{clock2.elapsed()};
-            self.stats["test_crossing_para2_count"] = c.shape(0);
-            self.stats["test_crossing_para2_ns"] = t1;
-            self.stats["test_crossing_para2_wcpy_ns"] = t2;
+            self.stats["test_para2_count"] = c.shape(0);
+            self.stats["test_para2_ns"] = t1;
+            self.stats["test_para2_wcpy_ns"] = t2;
 
             return res;
           })
       .def(
           "test_winding",
-          +[](PIP::BoxList<uint32_t> &self, py::array_t<_Float32> coords) {
+          +[](PIP::PolyEdgeList<uint32_t> &self, py::array_t<_Float32> coords) {
             auto c = coords.unchecked<2>();
             if (c.shape(1) < 2) {
               throw std::runtime_error(
@@ -393,7 +393,8 @@ PYBIND11_MODULE(point_in_polygon, m) {
           })
 
       .def(
-          "stats", +[](PIP::BoxList<uint32_t> &self) { return self.stats; })
+          "stats",
+          +[](PIP::PolyEdgeList<uint32_t> &self) { return self.stats; })
 
       ;
 
